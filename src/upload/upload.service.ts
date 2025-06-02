@@ -2,6 +2,7 @@ import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common
 import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 import { Readable } from 'stream';
 import { ImagesService } from '../images/images.service';
+import { Express } from 'express';
 
 @Injectable()
 export class UploadService {
