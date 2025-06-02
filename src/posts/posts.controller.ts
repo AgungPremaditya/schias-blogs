@@ -8,10 +8,12 @@ import {
   Put,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginatedPosts } from './interfaces/paginated-posts.interface';
 
 @Controller('posts')
 export class PostsController {
@@ -24,8 +26,11 @@ export class PostsController {
   }
 
   @Get()
-  findAll() {
-    return this.postsService.findAll();
+  async findAll(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ): Promise<PaginatedPosts> {
+    return this.postsService.findAll(+page, +limit);
   }
 
   @Get(':id')

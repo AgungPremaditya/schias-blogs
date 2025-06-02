@@ -2,19 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { CreatePostDto } from './dto/create-post.dto';
 import { SupabaseService } from '../config/supabase.config';
 import { generateSlug, findUniqueSlug } from '../utils/slug.utils';
-
-interface Post {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  published: boolean;
-  published_at: string | null;
-  created_at: string;
-  updated_at: string;
-  author_id: string;
-  category_id?: string;
-}
+import { Post, PaginatedPosts } from './interfaces/paginated-posts.interface';
 
 @Injectable()
 export class PostsService {
@@ -44,15 +32,67 @@ export class PostsService {
     return data;
   }
 
-  async findAll() {
-    const { data, error } = await this.supabaseService
+  async findAll(page: number = 1, pageSize: number = 10): Promise<PaginatedPosts> {
+    // First, get the total count of posts
+    const { count, error: countError } = await this.supabaseService
       .getClient()
       .from('posts')
-      .select('*, category:categories(*), author:users!author_id(*)')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+
+    // Calculate pagination values
+    const total = count || 0;
+    const totalPages = Math.ceil(total / pageSize);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Get paginated posts with specific fields for category and author
+    const { data: rawData, error } = await this.supabaseService
+      .getClient()
+      .from('posts')
+      .select(`
+        id,
+        title,
+        slug,
+        content,
+        published,
+        published_at,
+        author_id,
+        category_id,
+        category:categories!category_id (
+          id,
+          name,
+          slug
+        ),
+        author:users!author_id (
+          id,
+          email,
+          avatar,
+          username
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error) throw error;
-    return data;
+
+    // Transform the data to ensure category and author are single objects
+    const data = rawData?.map(post => ({
+      ...post,
+      category: Array.isArray(post.category) ? post.category[0] || null : post.category,
+      author: Array.isArray(post.author) ? post.author[0] || null : post.author
+    })) || [];
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        pageSize,
+        totalPages,
+      },
+    };
   }
 
   async findOne(id: string) {
@@ -95,7 +135,6 @@ export class PostsService {
     // If post is being published, set published_at
     const updates: Partial<Post> = {
       ...updatePostDto,
-      updated_at: new Date().toISOString(),
     };
 
     // If title is being updated, generate new slug
