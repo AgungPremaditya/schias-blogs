@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import * as bcrypt from 'bcrypt';
+import { Express } from 'express';
 
 @Injectable()
 export class UsersService {
