@@ -5,6 +5,7 @@ import { SupabaseService } from '../config/supabase.config';
 import { Category } from './interfaces/category.interface';
 import { generateSlug, findUniqueSlug } from '../utils/slug.utils';
 import { DuplicateCategoryException } from './exceptions/duplicate-category.exception';
+import { PaginatedCategories } from './interfaces/paginated-categories.interface';
 
 @Injectable()
 export class CategoriesService {
@@ -58,14 +59,52 @@ export class CategoriesService {
     return data;
   }
 
-  async findAll(): Promise<Category[]> {
+  async findAll(page: number = 1, pageSize: number = 10): Promise<PaginatedCategories> {
+    // First, get the total count of categories
+    const { count, error: countError } = await this.supabaseService
+      .getClient()
+      .from('categories')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+
+    // Calculate pagination values
+    const total = count || 0;
+    const totalPages = Math.ceil(total / pageSize);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Get paginated categories with post count
     const { data, error } = await this.supabaseService
       .getClient()
       .from('categories')
-      .select('*, posts(*)');
+      .select(`
+        id,
+        name,
+        slug,
+        description,
+        posts:posts(count)
+      `)
+      .order('name', { ascending: true })
+      .range(from, to);
 
     if (error) throw error;
-    return data;
+
+    // Transform the data to include post count
+    const transformedData = data?.map(category => ({
+      ...category,
+      postCount: category.posts?.[0]?.count || 0
+    })) || [];
+
+    return {
+      data: transformedData,
+      meta: {
+        total,
+        page,
+        pageSize,
+        totalPages,
+      },
+    };
   }
 
   async findOne(id: string): Promise<Category> {
