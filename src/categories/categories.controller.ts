@@ -29,8 +29,9 @@ export class CategoriesController {
   async findAll(
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
   ): Promise<PaginatedCategories> {
-    return this.categoriesService.findAll(+page, +limit);
+    return this.categoriesService.findAll(+page, +limit, search);
   }
 
   @Get(':id')

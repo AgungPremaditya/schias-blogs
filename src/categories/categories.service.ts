@@ -59,12 +59,23 @@ export class CategoriesService {
     return data;
   }
 
-  async findAll(page: number = 1, pageSize: number = 10): Promise<PaginatedCategories> {
-    // First, get the total count of categories
-    const { count, error: countError } = await this.supabaseService
+  async findAll(
+    page: number = 1, 
+    pageSize: number = 10,
+    search?: string
+  ): Promise<PaginatedCategories> {
+    // Build the base query
+    const baseQuery = this.supabaseService
       .getClient()
-      .from('categories')
-      .select('*', { count: 'exact', head: true });
+      .from('categories');
+
+    // Add search condition if search term is provided
+    const countQuery = search 
+      ? baseQuery.select('*', { count: 'exact', head: true }).ilike('name', `%${search}%`)
+      : baseQuery.select('*', { count: 'exact', head: true });
+
+    // First, get the total count of categories with search applied
+    const { count, error: countError } = await countQuery;
 
     if (countError) throw countError;
 
@@ -74,8 +85,8 @@ export class CategoriesService {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // Get paginated categories with post count
-    const { data, error } = await this.supabaseService
+    // Get paginated categories with post count and search applied
+    const selectQuery = this.supabaseService
       .getClient()
       .from('categories')
       .select(`
@@ -83,17 +94,24 @@ export class CategoriesService {
         name,
         slug,
         description,
-        posts:posts(count)
-      `)
+        postCount:posts(count)
+      `);
+
+    // Apply search if provided
+    if (search) {
+      selectQuery.ilike('name', `%${search}%`);
+    }
+
+    const { data, error } = await selectQuery
       .order('name', { ascending: true })
       .range(from, to);
 
     if (error) throw error;
 
-    // Transform the data to include post count
+    // Transform the data to ensure postCount is a number
     const transformedData = data?.map(category => ({
       ...category,
-      postCount: category.posts?.[0]?.count || 0
+      postCount: category.postCount?.[0]?.count || 0
     })) || [];
 
     return {
@@ -111,7 +129,13 @@ export class CategoriesService {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('categories')
-      .select('*, posts(*)')
+      .select(`
+        id,
+        name,
+        slug,
+        description,
+        postCount:posts(count)
+      `)
       .eq('id', id)
       .single();
 
@@ -120,7 +144,11 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID "${id}" not found`);
     }
 
-    return data;
+    // Transform the data to ensure postCount is a number
+    return {
+      ...data,
+      postCount: data.postCount?.[0]?.count || 0
+    };
   }
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
