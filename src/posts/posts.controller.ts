@@ -29,8 +29,9 @@ export class PostsController {
   async findAll(
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
   ): Promise<PaginatedPosts> {
-    return this.postsService.findAll(+page, +limit);
+    return this.postsService.findAll(+page, +limit, search);
   }
 
   @Get(':id')

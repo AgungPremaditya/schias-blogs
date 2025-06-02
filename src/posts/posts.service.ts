@@ -32,67 +32,122 @@ export class PostsService {
     return data;
   }
 
-  async findAll(page: number = 1, pageSize: number = 10): Promise<PaginatedPosts> {
-    // First, get the total count of posts
-    const { count, error: countError } = await this.supabaseService
-      .getClient()
-      .from('posts')
-      .select('*', { count: 'exact', head: true });
+  async findAll(
+    page: number = 1, 
+    pageSize: number = 10,
+    search?: string
+  ): Promise<PaginatedPosts> {
+    try {
+      // Build the base query for counting
+      let baseQuery = this.supabaseService
+        .getClient()
+        .from('posts')
+        .select('*', { count: 'exact', head: true });
 
-    if (countError) throw countError;
+      // Add search condition if search term is provided
+      if (search) {
+        baseQuery = baseQuery.ilike('title', `%${search}%`);
+      }
 
-    // Calculate pagination values
-    const total = count || 0;
-    const totalPages = Math.ceil(total / pageSize);
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
+      // Get total count with search applied
+      const { count, error: countError } = await baseQuery;
 
-    // Get paginated posts with specific fields for category and author
-    const { data: rawData, error } = await this.supabaseService
-      .getClient()
-      .from('posts')
-      .select(`
-        id,
-        title,
-        slug,
-        content,
-        published,
-        published_at,
-        author_id,
-        category_id,
-        category:categories!category_id (
+      // If there's an error or no results, return empty array with meta
+      if (countError || !count) {
+        return {
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+          },
+        };
+      }
+
+      // Calculate pagination values
+      const total = count;
+      const totalPages = Math.ceil(total / pageSize);
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      // Build the main query for fetching posts
+      let selectQuery = this.supabaseService
+        .getClient()
+        .from('posts')
+        .select(`
           id,
-          name,
-          slug
-        ),
-        author:users!author_id (
-          id,
-          email,
-          avatar,
-          username
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .range(from, to);
+          title,
+          slug,
+          content,
+          published,
+          published_at,
+          author_id,
+          category_id,
+          category:categories!category_id (
+            id,
+            name,
+            slug
+          ),
+          author:users!author_id (
+            id,
+            email,
+            avatar,
+            username
+          )
+        `);
 
-    if (error) throw error;
+      // Apply search if provided
+      if (search) {
+        selectQuery = selectQuery.ilike('title', `%${search}%`);
+      }
 
-    // Transform the data to ensure category and author are single objects
-    const data = rawData?.map(post => ({
-      ...post,
-      category: Array.isArray(post.category) ? post.category[0] || null : post.category,
-      author: Array.isArray(post.author) ? post.author[0] || null : post.author
-    })) || [];
+      // Get paginated posts with search applied
+      const { data: rawData, error } = await selectQuery
+        .order('published_at', { ascending: false })
+        .range(from, to);
 
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        pageSize,
-        totalPages,
-      },
-    };
+      // If there's an error or no results, return empty array with meta
+      if (error || !rawData) {
+        return {
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+          },
+        };
+      }
+
+      // Transform the data to ensure category and author are single objects
+      const data = rawData.map(post => ({
+        ...post,
+        category: Array.isArray(post.category) ? post.category[0] || null : post.category,
+        author: Array.isArray(post.author) ? post.author[0] || null : post.author
+      }));
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          pageSize,
+          totalPages,
+        },
+      };
+    } catch (error) {
+      // If any error occurs, return empty array with meta
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+        },
+      };
+    }
   }
 
   async findOne(id: string) {
