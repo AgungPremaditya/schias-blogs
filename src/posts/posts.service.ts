@@ -317,4 +317,65 @@ export class PostsService {
     if (error) throw error;
     return data;
   }
+
+  async findBySlug(slug: string) {
+    // Get the post with its relationships
+    const { data: post, error } = await this.supabaseService
+      .getClient()
+      .from('posts')
+      .select(`
+        id,
+        title,
+        slug,
+        content,
+        published,
+        published_at,
+        author_id,
+        category_id,
+        category:categories!category_id (
+          id,
+          name,
+          slug
+        ),
+        author:users!author_id (
+          id,
+          email,
+          avatar,
+          username
+        )
+      `)
+      .eq('slug', slug)
+      .single();
+
+    if (error) throw error;
+    if (!post) {
+      throw new NotFoundException(`Post with slug "${slug}" not found`);
+    }
+
+    // Get the cover image if exists
+    const { data: imagesData } = await this.supabaseService
+      .getClient()
+      .from('posts_images')
+      .select(`
+        post_id,
+        image:images!image_id (
+          id,
+          url,
+          public_id
+        )
+      `)
+      .eq('post_id', post.id)
+      .is('display_order', null)
+      .single();
+
+    // Transform the data to ensure category and author are single objects
+    const transformedPost = {
+      ...post,
+      category: Array.isArray(post.category) ? post.category[0] || null : post.category,
+      author: Array.isArray(post.author) ? post.author[0] || null : post.author,
+      cover_image: imagesData?.image || null
+    };
+
+    return transformedPost;
+  }
 } 
