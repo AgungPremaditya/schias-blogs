@@ -21,8 +21,9 @@ export class CategoriesController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.create(createCategoryDto);
+  async create(@Body() createCategoryDto: CreateCategoryDto) {
+    const category = await this.categoriesService.create(createCategoryDto);
+    return { data: category };
   }
 
   @Get()
@@ -30,24 +31,27 @@ export class CategoriesController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('search') search?: string,
-  ): Promise<PaginatedCategories> {
+  ) {
     return this.categoriesService.findAll(+page, +limit, search);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.categoriesService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const category = await this.categoriesService.findOne(id);
+    return { data: category };
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
-    return this.categoriesService.update(id, updateCategoryDto);
+  async update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
+    const category = await this.categoriesService.update(id, updateCategoryDto);
+    return { data: category };
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.categoriesService.remove(id);
+  async remove(@Param('id') id: string) {
+    const result = await this.categoriesService.remove(id);
+    return { data: result };
   }
 } 

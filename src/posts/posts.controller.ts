@@ -21,8 +21,9 @@ export class PostsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Request() req, @Body() createPostDto: CreatePostDto) {
-    return this.postsService.create(req.user.id, createPostDto);
+  async create(@Request() req, @Body() createPostDto: CreatePostDto) {
+    const post = await this.postsService.create(req.user.id, createPostDto);
+    return { data: post };
   }
 
   @Get()
@@ -30,33 +31,37 @@ export class PostsController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('search') search?: string,
-  ): Promise<PaginatedPosts> {
+  ) {
     return this.postsService.findAll(+page, +limit, search);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.postsService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const post = await this.postsService.findOne(id);
+    return { data: post };
   }
 
   @Get('by-slug/:slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.postsService.findBySlug(slug);
+  async findBySlug(@Param('slug') slug: string) {
+    const post = await this.postsService.findBySlug(slug);
+    return { data: post };
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  update(
+  async update(
     @Request() req,
     @Param('id') id: string,
     @Body() updatePostDto: Partial<CreatePostDto>,
   ) {
-    return this.postsService.update(id, req.user.id, updatePostDto);
+    const post = await this.postsService.update(id, req.user.id, updatePostDto);
+    return { data: post };
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  delete(@Request() req, @Param('id') id: string) {
-    return this.postsService.delete(id, req.user.id);
+  async delete(@Request() req, @Param('id') id: string) {
+    const result = await this.postsService.delete(id, req.user.id);
+    return { data: result };
   }
 } 
