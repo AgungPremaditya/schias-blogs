@@ -7,6 +7,7 @@ import { PostsModule } from './posts/posts.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SupabaseService } from './config/supabase.config';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SupabaseService } from './config/supabase.config';
     PostsModule,
     AuthModule,
     UsersModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService, SupabaseService],

@@ -11,6 +11,12 @@ interface Author {
   username: string;
 }
 
+interface Image {
+  id: string;
+  url: string;
+  public_id: string;
+}
+
 export interface Post {
   id: string;
   title: string;
@@ -22,6 +28,7 @@ export interface Post {
   category_id?: string;
   category?: Category | null;
   author?: Author | null;
+  cover_image?: Image | null;
 }
 
 export interface PaginatedPosts {

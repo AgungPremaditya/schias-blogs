@@ -107,8 +107,8 @@ export class PostsService {
         .order('published_at', { ascending: false })
         .range(from, to);
 
-      // If there's an error or no results, return empty array with meta
-      if (error || !rawData) {
+      if (error) {
+        console.error('Error fetching posts:', error);
         return {
           data: [],
           meta: {
@@ -120,12 +120,63 @@ export class PostsService {
         };
       }
 
+      if (!rawData) {
+        console.log('No posts found');
+        return {
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+          },
+        };
+      }
+
+      // Get all post IDs
+      const postIds = rawData.map(post => post.id);
+
+      // Fetch cover images separately if there are posts
+      let coverImages = {};
+      if (postIds.length > 0) {
+        const { data: imagesData } = await this.supabaseService
+          .getClient()
+          .from('posts_images')
+          .select(`
+            post_id,
+            display_order,
+            image:images!image_id (
+              id,
+              url,
+              public_id
+            )
+          `)
+          .in('post_id', postIds)
+          .is('display_order', null)
+          .order('created_at', { ascending: true }); // Get the first uploaded image if multiple nulls
+
+        // Create a map of post_id to cover image
+        if (imagesData) {
+          coverImages = imagesData.reduce((acc, img) => {
+            // Only set the image if we haven't seen this post_id yet
+            if (img.image && !acc[img.post_id]) {
+              acc[img.post_id] = img.image;
+            }
+            return acc;
+          }, {});
+        }
+      }
+
       // Transform the data to ensure category and author are single objects
-      const data = rawData.map(post => ({
-        ...post,
-        category: Array.isArray(post.category) ? post.category[0] || null : post.category,
-        author: Array.isArray(post.author) ? post.author[0] || null : post.author
-      }));
+      const data = rawData.map(post => {
+        const transformedPost = {
+          ...post,
+          category: Array.isArray(post.category) ? post.category[0] || null : post.category,
+          author: Array.isArray(post.author) ? post.author[0] || null : post.author,
+          cover_image: coverImages[post.id] || null
+        };
+        return transformedPost;
+      });
 
       return {
         data,
