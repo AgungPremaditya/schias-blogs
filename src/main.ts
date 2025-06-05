@@ -14,6 +14,10 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',  
+      'www.schias.space',
+      'schias.space',
+      'https://www.schias.space',
+      'https://schias.space',
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
